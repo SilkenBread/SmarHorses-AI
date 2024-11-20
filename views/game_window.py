@@ -38,10 +38,10 @@ class GameWindow(tk.Toplevel):
         imageExperto = imageExperto.resize((100, 50))
         self.btnExperto_img = ImageTk.PhotoImage(imageExperto)
 
-        # Carga la imagen para reiniciar
-        imageReiniciar = Image.open("resources/images/reiniciar.png")
-        imageReiniciar = imageReiniciar.resize((100, 50))
-        self.btnReinicio_img = ImageTk.PhotoImage(imageReiniciar)
+        # Carga la imagen nivel vs
+        imageVS = Image.open("resources/images/level_vs.png")
+        imageVS = imageVS.resize((100, 50))
+        self.btnVS_img = ImageTk.PhotoImage(imageVS)
 
         # Nivel de dificultad
         self.difficultLabel = tk.Label(self, text="Escoge la dificultad del juego ")
@@ -62,7 +62,7 @@ class GameWindow(tk.Toplevel):
         self.botonExperto.pack()
         self.botonExperto.place(x=250, y=350)
 
-        self.botonVS = tk.Button(self, image=self.btnExperto_img, bg="white", bd=0, command=self.level_vs)
+        self.botonVS = tk.Button(self, image=self.btnVS_img, bg="white", bd=0, command=self.level_vs)
         self.botonVS.pack()
         self.botonVS.place(x=250, y=420)
 

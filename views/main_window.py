@@ -24,11 +24,6 @@ class MainWindow(tk.Tk):
         imageJugar = imageJugar.resize((200, 100))  # Ajusta el tamaño de la imagen si es necesario
         self.btnJugar_img = ImageTk.PhotoImage(imageJugar)
 
-        # Carga la imagen creditos
-        imageCreditos = Image.open("resources/images/creditos.png")
-        imageCreditos = imageCreditos.resize((200, 100))  # Ajusta el tamaño de la imagen si es necesario
-        self.btnCreditos_img = ImageTk.PhotoImage(imageCreditos)
-
         def game():
             GameWindow()
         
