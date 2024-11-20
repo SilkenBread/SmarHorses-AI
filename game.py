@@ -8,6 +8,8 @@ class Juego:
         self.jugadorGame = 'Max'
         self.puntajeMin = 0
         self.puntajeMax = 0
+        self.tiene_x2_max = False
+        self.tiene_x2_min = False
         self.posicionJugadorMax = []
         self.posicionJugadorMin = []
 
@@ -31,6 +33,15 @@ class Juego:
                     fila, columna = np.unravel_index(posicion, (8, 8))
                     if self.tableroGame[fila, columna] == 0:
                         self.tableroGame[fila, columna] = num
+                        break
+
+            # Asignar las casillas con x2
+            for _ in range(4):  # Hay cuatro casillas x2
+                while True:
+                    posicion = np.random.randint(8 * 8)
+                    fila, columna = np.unravel_index(posicion, (8, 8))
+                    if self.tableroGame[fila, columna] == 0:
+                        self.tableroGame[fila, columna] = 20  # Representar x2 con 20
                         break
 
             while True:
@@ -129,9 +140,25 @@ class Juego:
         posicion_anterior = np.where(new == jugador_actual)
         new[posicion_anterior] = 0
 
-        if self.casilla_puntos(tablero, fila, columna):
-            puntaje = tablero[fila][columna]
+        if tablero[fila, columna] == 20:  # Si recoge un x2
+            if jugador == 'Max':
+                self.tiene_x2_max = True
+            else:
+                self.tiene_x2_min = True
+        elif self.casilla_puntos(tablero, fila, columna):
+            puntaje = tablero[fila, columna]
+            if (jugador == 'Max' and self.tiene_x2_max) or (jugador == 'Min' and self.tiene_x2_min):
+                puntaje *= 2
+                if jugador == 'Max':
+                    self.tiene_x2_max = False
+                else:
+                    self.tiene_x2_min = False
             self.sumar_puntaje(jugador, puntaje)
+        else:
+            if jugador == 'Max':
+                self.tiene_x2_max = False
+            else:
+                self.tiene_x2_min = False
         if jugador == 'Max':
             new[fila, columna] = 11
         elif jugador == 'Min':

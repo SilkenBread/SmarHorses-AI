@@ -51,7 +51,12 @@ class Experto(tk.Toplevel):
                 color = "beige" if (fila + columna) % 2 == 0 else "gray"
                 self.canvas.create_rectangle(x, y, x + 50, y + 50, fill=color)
 
-                if tablero[fila][columna] != 0:
+                # Casillas x2
+                if tablero[fila][columna] == -2:
+                    self.canvas.create_text(
+                        x + 25, y + 25, text="x2", font=("Arial", 12, "bold"), fill="red")
+
+                elif tablero[fila][columna] != 0:
                     if tablero[fila][columna] == 11:
                         self.img_caballoB = Image.open(
                             "resources/images/caballo_blanco.png")
@@ -71,7 +76,6 @@ class Experto(tk.Toplevel):
                         self.canvas.create_image(
                             x + 25, y + 25, image=self.canvas.image_caballoN, tags="caballo_negro")
                     else:
-                        # Números normales
                         self.canvas.create_text(
                             x + 25, y + 25, text=str(tablero[fila][columna]), font=("Arial", 12))
 

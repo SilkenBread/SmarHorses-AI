@@ -4,12 +4,13 @@ from PIL import Image, ImageTk
 from levels.principiante import Principiante
 from levels.amateur import Amateur
 from levels.experto import Experto
+from views.juego_interface import JuegoInterface
 
 class GameWindow(tk.Toplevel):
     def __init__(self):
         super().__init__()
         self.title("Smart Horses")
-        self.geometry("600x430")
+        self.geometry("600x500")
         self.config(bg="white")
 
         # Imagen de título
@@ -61,6 +62,10 @@ class GameWindow(tk.Toplevel):
         self.botonExperto.pack()
         self.botonExperto.place(x=250, y=350)
 
+        self.botonVS = tk.Button(self, image=self.btnExperto_img, bg="white", bd=0, command=self.level_vs)
+        self.botonVS.pack()
+        self.botonVS.place(x=250, y=420)
+
     def level_one(self):
         Principiante()
 
@@ -69,3 +74,6 @@ class GameWindow(tk.Toplevel):
 
     def level_three(self):
         Experto()
+
+    def level_vs(self):
+        JuegoInterface()
