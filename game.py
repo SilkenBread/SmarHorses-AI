@@ -1,6 +1,7 @@
 import numpy as np
 from node import Nodo
 import copy
+import random
 
 class Juego:
     def __init__(self):
@@ -12,6 +13,12 @@ class Juego:
         self.tiene_x2_min = False
         self.posicionJugadorMax = []
         self.posicionJugadorMin = []
+        self.max_last_move = None
+
+        self.horse_moves = [
+            (2, 1), (2, -1), (-2, 1), (-2, -1),
+            (1, 2), (1, -2), (-1, 2), (-1, -2)
+        ]
 
     def complejidad_juego(self, nivelFront):
         if nivelFront == 'principiante':
@@ -125,6 +132,7 @@ class Juego:
         for i in range(len(tablero)):
             for j in range(len(tablero)):
                 if jugador == 'Max' and tablero[i][j] == 11:
+                    self.max_last_move = (i, j)
                     return (i, j)
                 if jugador == 'Min' and tablero[i][j] == 12:
                     return (i, j)
@@ -182,75 +190,47 @@ class Juego:
             return 'Min'
         else:
             return 'Max'
-        
-    def utilidad_profundidad(self, profundidad):
-        puntaje_max = self.obtener_puntaje('Max')
-        puntaje_min = self.obtener_puntaje('Min')
-        utilidad_puntaje = puntaje_max - puntaje_min
-        if profundidad == 0:
-            return utilidad_puntaje *0
-        elif profundidad == 1:
-            return utilidad_puntaje *6
-        elif profundidad == 2:
-            return utilidad_puntaje *5
-        elif profundidad == 3:
-            return utilidad_puntaje *4
-        elif profundidad == 4:
-            return utilidad_puntaje *3
-        elif profundidad == 5:
-            return utilidad_puntaje *2        
-        elif profundidad == 6:
-            return utilidad_puntaje *1
-        else:
-            return utilidad_puntaje
 
     def evaluar_estado(self, profundidad):
-        puntaje_max = self.obtener_puntaje('Max')
-        puntaje_min = self.obtener_puntaje('Min')
-        puntos_disponibles = 0
-        distancia_total = 0
-        puede_tomar_punto = False  # Variable para verificar si 'Max' puede tomar un punto
+        # Evaluación base de la diferencia de puntuación
+        diferencia_puntuacion = self.puntajeMax - self.puntajeMin
+        
+        # Evaluar posición actual
+        posicion_actual = self.obtener_posicion_caballo(self.tableroGame, 'Max')
+        if posicion_actual is None:
+            return diferencia_puntuacion
+        
+        x, y = posicion_actual
+        valor_casilla_actual = self.tableroGame[x][y]
 
-        for fila in range(8):
-            for columna in range(8):
-                if self.casilla_puntos(self.tableroGame, fila, columna):
-                    puntos_disponibles += 1
-                    distancia = abs(fila - self.posicionJugadorMax[1]) + abs(columna - self.posicionJugadorMax[0])
-                    distancia_total += distancia
-                    puede_tomar_punto = True  # Se encontró al menos un punto disponible
-
-        if puede_tomar_punto:
-            return float('inf')  # 'Max' puede tomar un punto, se devuelve infinito
-
-        if puntaje_max == 0 and puntaje_min == 0:
-            return 0  # Ambos jugadores tienen puntaje 0, se considera empate
-
-        if puntaje_max == puntos_disponibles:
-            return float('inf')  # 'Max' ha recolectado todos los puntos
-
-        utilidadProfundidad = self.utilidad_profundidad(profundidad)
-
-        if distancia_total > 0:
-            utilidadDistancia = puntos_disponibles / distancia_total
+        # Verificar si la posición actual tiene puntos
+        if self.casilla_puntos(self.tableroGame, x, y):
+            # Multiplicador x2 si está disponible
+            multiplicador = 2 if self.tiene_x2_max else 1
+            # Dar un peso muy alto a casillas con puntos
+            return 1000 * multiplicador * valor_casilla_actual + diferencia_puntuacion
+        elif valor_casilla_actual == 20:  # Casilla x2
+            return 50 + diferencia_puntuacion
         else:
-            utilidadDistancia = puntos_disponibles
-
-        if puntos_disponibles > 0 and (puntaje_max == 0 or puntaje_max != 28):
-            return -float('inf')  # No hay puntos y 'Max' no ha recolectado ninguno
-
-        return puntaje_max - puntaje_min + utilidadProfundidad + utilidadDistancia
-
+            return (diferencia_puntuacion)
 
     def minimax(self, nodo, alfa, beta, movimientos_realizados):
         if nodo.profundidad == 0 or self.juego_terminado(nodo.tablero):
             return self.evaluar_estado(nodo.profundidad)
 
-        if nodo.jugador == 'Max':
-            mejorValor = -float("inf")
+        if nodo.jugador == 'Min':
             movimientos = self.movimientos_posibles(nodo.tablero, nodo.jugador)
+
+            # Solo filtrar el último movimiento para evitar ciclos
+            if self.max_last_move is not None:
+                movimientos = [m for m in movimientos if m != self.max_last_move]
+                if not movimientos:
+                    movimientos = self.movimientos_posibles(nodo.tablero, nodo.jugador)
+
+            mejorValor = -float("inf")
             for jugada in movimientos:
                 if jugada not in movimientos_realizados:
-                    movimientos_realizados.add(jugada)
+                    movimientos_realizados.append(jugada)
                     nuevoTablero = self.realizarJugada(copy.deepcopy(nodo.tablero), jugada, nodo.jugador)
                     nuevoNodo = Nodo(nuevoTablero, self.oponente(nodo.jugador), nodo.profundidad - 1)
                     valor = self.minimax(nuevoNodo, alfa, beta, movimientos_realizados)
@@ -258,23 +238,24 @@ class Juego:
                     alfa = max(alfa, mejorValor)
                     movimientos_realizados.remove(jugada)
                     if beta <= alfa:
-                        break  # Corte alfa-beta
+                        break
             return mejorValor
-        else:
-            peorValor = float("inf")
+        else:  # Jugador Min
             movimientos = self.movimientos_posibles(nodo.tablero, nodo.jugador)
+            mejorValor = float("inf")
+            
             for jugada in movimientos:
                 if jugada not in movimientos_realizados:
-                    movimientos_realizados.add(jugada)
+                    movimientos_realizados.append(jugada)
                     nuevoTablero = self.realizarJugada(copy.deepcopy(nodo.tablero), jugada, nodo.jugador)
                     nuevoNodo = Nodo(nuevoTablero, self.oponente(nodo.jugador), nodo.profundidad - 1)
                     valor = self.minimax(nuevoNodo, alfa, beta, movimientos_realizados)
-                    peorValor = min(peorValor, valor)
-                    beta = min(beta, peorValor)
+                    mejorValor = min(mejorValor, valor)
+                    beta = min(beta, mejorValor)
                     movimientos_realizados.remove(jugada)
                     if beta <= alfa:
-                        break  # Corte alfa-beta
-            return peorValor
+                        break
+            return mejorValor
 
 def verificar_primer_movimiento_max(tablero, profundidad, jugador, movimientos_realizados):
     juego = Juego()
@@ -285,13 +266,18 @@ def verificar_primer_movimiento_max(tablero, profundidad, jugador, movimientos_r
     mejor_movimiento = None
 
     for movimiento in movimientos_iniciales:
-        movimientos_realizados.add(movimiento)  # Agregar movimiento al registro
-        nuevo_tablero = juego.realizarJugada(copy.deepcopy(tablero), movimiento, jugador)
-        nuevo_nodo = Nodo(nuevo_tablero, juego.oponente(jugador), profundidad)
-        utilidad = juego.minimax(nuevo_nodo, alfa, beta, movimientos_realizados)
-        if utilidad > mejor_utilidad:
-            mejor_utilidad = utilidad
-            mejor_movimiento = movimiento
-        movimientos_realizados.remove(movimiento)  # Eliminar movimiento del registro
+        if movimiento not in movimientos_realizados:
+            movimientos_realizados.append(movimiento)
+            nuevo_tablero = juego.realizarJugada(copy.deepcopy(tablero), movimiento, jugador)
+            nuevo_nodo = Nodo(nuevo_tablero, juego.oponente(jugador), profundidad - 1)
+            utilidad = juego.minimax(nuevo_nodo, alfa, beta, movimientos_realizados)
+            if utilidad > mejor_utilidad:
+                mejor_utilidad = utilidad
+                mejor_movimiento = movimiento
+            movimientos_realizados.remove(movimiento)
+
+    if mejor_movimiento is None:
+        print("No se encontró un mejor movimiento")
+        mejor_movimiento = random.choice(movimientos_iniciales)
 
     return mejor_movimiento

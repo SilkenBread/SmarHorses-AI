@@ -12,23 +12,35 @@ class Experto(tk.Toplevel):
         self.juego = Juego()
         self.profundidad = self.juego.complejidad_juego('experto')
         self.jugador = 'Max'
-        self.movimientos_realizados = set()  # Registro de movimientos realizados
+        self.movimientos_realizados = list()  # Registro de movimientos realizados
+        self.game_over = False
 
         self.canvas = tk.Canvas(self, width=400, height=400)
         self.canvas.pack()
 
-        self.score_min_label = tk.Label(self, text="Puntuación Min: ")
+        self.score_min_label = tk.Label(self, text="Puntuación Caballo Negro: ")
         self.score_min_label.pack()
 
-        self.score_max_label = tk.Label(self, text="Puntuación Max: ")
+        self.score_max_label = tk.Label(self, text="Puntuación Caballo Blanco: ")
         self.score_max_label.pack()
 
         self.canvas.bind("<Button-1>", self.on_click)
 
         self.update_board()
 
-        self.after(1000, self.make_initial_move) # Esperar 2 segundos antes del primer movimiento
+        self.after(1000, self.make_initial_move)
 
+    def check_game_over(self, tablero):
+        if self.juego.juego_terminado(tablero) and not self.game_over:
+            self.game_over = True
+            if self.juego.puntajeMin > self.juego.puntajeMax:
+                messagebox.showinfo("Juego terminado", "¡Le ganaste a la IA!")
+            elif self.juego.puntajeMax > self.juego.puntajeMin:
+                messagebox.showinfo("Juego terminado", "¡Ganó la IA!")
+            else:
+                messagebox.showinfo("Juego terminado", "¡Es un empate!")
+            return True
+        return False
 
     def update_scores(self):
         self.score_min_label.config(
@@ -52,9 +64,12 @@ class Experto(tk.Toplevel):
                 self.canvas.create_rectangle(x, y, x + 50, y + 50, fill=color)
 
                 # Casillas x2
-                if tablero[fila][columna] == -2:
+                if tablero[fila][columna] == 20:
                     self.canvas.create_text(
-                        x + 25, y + 25, text="x2", font=("Arial", 12, "bold"), fill="red")
+                        x + 25, y + 25, 
+                        text="x2", 
+                        font=("Arial", 12, "bold"), 
+                        fill="red")
 
                 elif tablero[fila][columna] != 0:
                     if tablero[fila][columna] == 11:
@@ -79,71 +94,32 @@ class Experto(tk.Toplevel):
                         self.canvas.create_text(
                             x + 25, y + 25, text=str(tablero[fila][columna]), font=("Arial", 12))
 
-
     def on_click(self, event):
-        if self.jugador == 'Min':
-            columna = event.x // 50
-            fila = event.y // 50
-            jugada_min = (fila, columna)
+        if self.game_over or self.jugador == 'Max':
+            return
 
-            if self.juego.alcanzar_casilla(self.juego.tableroGame, self.jugador, fila, columna):
-                nuevo_tablero = self.juego.realizarJugada(
-                    self.juego.tableroGame, jugada_min, self.jugador)
-                self.update_board()
+        columna = event.x // 50
+        fila = event.y // 50
+        jugada_min = (fila, columna)
 
-                if self.juego.juego_terminado(nuevo_tablero):
-                    if self.juego.puntajeMin == self.juego.puntajeMax:
-                        messagebox.showinfo(
-                            "Juego terminado", "¡Es un empate!")
-                        
-                    elif self.juego.puntajeMin > self.juego.puntajeMax:
-                        messagebox.showinfo("Juego terminado",
-                                            "¡Le ganaste a la IA!")
-                        
-                    elif self.juego.puntajeMin < self.juego.puntajeMax:
-                        messagebox.showinfo("Juego terminado",
-                                            "¡Ganó la IA!")
+        if self.juego.alcanzar_casilla(self.juego.tableroGame, self.jugador, fila, columna):
+            nuevo_tablero = self.juego.realizarJugada(
+                self.juego.tableroGame, jugada_min, self.jugador)
+            self.juego.tableroGame = nuevo_tablero
+            self.update_board()
+            self.update_scores()
+            
+            if self.check_game_over(nuevo_tablero):
+                return
 
-                self.juego.tableroGame = nuevo_tablero
-
-                self.jugador = 'Max'
-                self.movimientos_realizados.add(jugada_min)
-                self.make_move()
-
-        elif self.jugador == 'Max':
-            columna = event.x // 50
-            fila = event.y // 50
-            jugada_max = (fila, columna)
-
-            if self.juego.alcanzar_casilla(self.juego.tableroGame, self.jugador, fila, columna):
-                nuevo_tablero = self.juego.realizarJugada(
-                    self.juego.tableroGame, jugada_max, self.jugador)
-                self.update_board()
-
-                if self.juego.juego_terminado(nuevo_tablero):
-                    if self.juego.puntajeMax > self.juego.puntajeMin:
-                        messagebox.showinfo("Juego terminado",
-                                            "¡Ganó la IA!")
-                        
-                    elif self.juego.puntajeMin > self.juego.puntajeMax:
-                        messagebox.showinfo("Juego terminado",
-                                            "¡Le ganaste a la IA!")                 
-
-                    elif self.juego.puntajeMin == self.juego.puntajeMax:
-                        messagebox.showinfo(
-                            "Juego terminado", "¡Es un empate!")
-                        
-                self.juego.tableroGame = nuevo_tablero
-
-                self.jugador = 'Min'
-                self.movimientos_realizados.add(jugada_max)
-                self.make_move()
-
+            self.jugador = 'Max'
+            
+            self.after(1000, self.make_move)
     
     def make_initial_move(self):
-        self.make_move()
+        if not self.game_over:
+            self.make_move()
 
-    
     # Función que muestra las posibles jugadas dibujadas en el tablero de juego
     def mostrar_posibles_jugadas(self, posibles_jugadas):
         for i, j in posibles_jugadas:
@@ -153,38 +129,34 @@ class Experto(tk.Toplevel):
                 x - 20, y - 20, x + 20, y + 20, outline="green", width=2)
             
     def make_move(self):
+        if self.game_over:
+            return
+
         if self.jugador == 'Max':
-            movimientos_realizados = self.movimientos_realizados.copy()  # Copia de los movimientos realizados
+            movimientos_realizados = self.movimientos_realizados.copy()
             mejor_movimiento_max = verificar_primer_movimiento_max(
                 self.juego.tableroGame, self.profundidad, 'Max', movimientos_realizados)
             nuevo_tablero = self.juego.realizarJugada(
                 self.juego.tableroGame, mejor_movimiento_max, 'Max')
-
-            if self.juego.juego_terminado(nuevo_tablero):
-                if self.juego.puntajeMax > self.juego.puntajeMin:
-                    messagebox.showinfo("Juego terminado",
-                                        "¡Ganó la IA!")
+            self.movimientos_realizados.append(mejor_movimiento_max)
+            
             self.juego.tableroGame = nuevo_tablero
+            self.update_board()
+            self.update_scores()
+
+            if self.check_game_over(nuevo_tablero):
+                return
 
             self.jugador = 'Min'
-
-            self.update_scores()  # Actualizar puntuaciones en la interfaz
-
-            self.update_board()
-
             self.mostrar_posibles_jugadas(self.juego.movimientos_posibles(
-                nuevo_tablero, 'Min'))  # Mostrar posibles jugadas
+                nuevo_tablero, 'Min'))
 
         elif self.jugador == 'Min':
             movimientos_posibles_min = self.juego.movimientos_posibles(
                 self.juego.tableroGame, 'Min')
             movimientos_posibles_min = movimientos_posibles_min - self.movimientos_realizados
+
+            self.jugador = 'Max'
+            
             if not movimientos_posibles_min:
-                if self.juego.puntajeMin == self.juego.puntajeMax:
-                    messagebox.showinfo("Juego terminado", "¡Es un empate!")
-                else:
-                    messagebox.showinfo("Juego terminado",
-                                        "¡Ganó el jugador 'Max'!")
-                    
-            else:
-                self.make_move()
+                self.check_game_over(self.juego.tableroGame)

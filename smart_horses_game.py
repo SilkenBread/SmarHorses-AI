@@ -163,65 +163,6 @@ class SmartHorsesGame:
         if len(valid_moves) == 0:
             return None, self.evaluar_tablero(horse)
 
-        # Estrategia específica para el caballo 1
-        if horse == 1:
-            # Buscar movimientos con puntos disponibles
-            point_moves = [
-                move for move in valid_moves 
-                if self.points_board[move[0], move[1]] > 0
-            ]
-
-            # Si hay movimientos con puntos, priorizar esos
-            if point_moves:
-                # Si hay múltiples movimientos con puntos, elegir el de mayor valor
-                best_point_move = max(
-                    point_moves, 
-                    key=lambda move: self.points_board[move[0], move[1]]
-                )
-                return best_point_move, self.points_board[best_point_move[0], best_point_move[1]]
-            
-            # Si no hay movimientos con puntos, elegir aleatoriamente
-            if valid_moves:
-                best_move = random.choice(valid_moves)
-                return best_move, 0
-            
-        # Estrategia específica para el caballo 2
-        if horse == 2:
-            # Filtrar movimientos para evitar repetir el último movimiento
-            if self.horse2_last_move is not None:
-                valid_moves = [
-                    move for move in valid_moves 
-                    if move != self.horse2_last_move
-                ]
-
-                # Si eliminar el último movimiento deja sin opciones, restaurar todos los movimientos
-                if not valid_moves:
-                    valid_moves = self.obtener_movimientos_validos(current_pos, horse)
-
-            # Obtener los puntos disponibles en orden descendente
-            available_points = sorted(np.unique(self.points_board), reverse=True)
-            available_points = [p for p in available_points if p > 0]
-
-            # Buscar movimientos para cada punto en orden
-            for target_point in available_points:
-                point_moves = [
-                    move for move in valid_moves 
-                    if self.points_board[move[0], move[1]] == target_point
-                ]
-
-                if point_moves:
-                    # Si hay múltiples movimientos con el mismo punto, elegir el más cercano
-                    best_point_move = min(
-                        point_moves, 
-                        key=lambda move: abs(move[0] - current_pos[0]) + abs(move[1] - current_pos[1])
-                    )
-                    return best_point_move, self.points_board[best_point_move[0], best_point_move[1]]
-
-            # Si no encuentra puntos, elige un movimiento aleatorio de los válidos
-            if valid_moves:
-                best_move = random.choice(valid_moves)
-                return best_move, 0
-
         # Lógica original de minimax para el caballo 2 o movimientos del caballo 1 sin puntos
         if maximizing_player:
             max_eval = float('-inf')
@@ -273,12 +214,6 @@ class SmartHorsesGame:
             return self.evaluar_tablero_horse2()
         
     def evaluar_tablero_horse2(self) -> int:
-        """
-        Función de utilidad para el caballo 2:
-        1. Diferencia de puntuaciones
-        2. Distancia a casillas de puntos
-        3. Proximidad a símbolos x2
-        """
         # Diferencia de puntuaciones base
         score_diff = self.horse2_score - self.horse1_score
 
@@ -294,8 +229,8 @@ class SmartHorsesGame:
         # Ponderación de los factores
         # Ajustar estos pesos permite modificar el comportamiento estratégico
         weights = {
-            'score_diff': 2.0,     # Importancia de la diferencia de puntuación
-            'points_distance': -1.5,  # Preferir estar cerca de puntos (negativo porque queremos minimizar la distancia)
+            'score_diff': 5.0,     # Importancia de la diferencia de puntuación
+            'points_distance': 5.0,  # Preferir estar cerca de puntos (negativo porque queremos minimizar la distancia)
             'x2_proximity': 1.0,   # Valor de estar cerca de símbolos x2
         }
 
