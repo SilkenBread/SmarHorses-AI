@@ -81,8 +81,8 @@ class SmartHorsesGUI(tk.Toplevel):
         )
 
         # Actualizar etiquetas de puntuación
-        self.score_horse1_label.config(text=f"Puntuación Caballo 1: {self.game.horse1_score}")
-        self.score_horse2_label.config(text=f"Puntuación Caballo 2: {self.game.horse2_score}")
+        self.score_horse1_label.config(text=f"Puntuación Caballo Blanco: {self.game.horse1_score}")
+        self.score_horse2_label.config(text=f"Puntuación Caballo Negro: {self.game.horse2_score}")
 
     def load_horse_image(self, color: str):
         """Cargar imagen de caballo"""
@@ -99,19 +99,20 @@ class SmartHorsesGUI(tk.Toplevel):
         if self.game.game_over():
             self.declare_winner()
             return
-
-        depth = self.depth_horse1 if self.current_horse == 1 else self.depth_horse2
         
-        # Obtener mejor movimiento usando minimax
-        best_move, _ = self.game.minimax(depth, True, self.current_horse)
+        if self.current_horse == 1:
+            best_move, _ = self.game.minimax_horse1(self.depth_horse1, True)
+            if best_move:
+                self.game.mover(1, best_move)
+        else:
+            best_move, _ = self.game.minimax_horse2(self.depth_horse2, True)
+            if best_move:
+                self.game.mover(2, best_move)
         
         if best_move is None:
             print(f"No hay movimientos posibles para Caballo {self.current_horse}")
             self.current_horse = 3 - self.current_horse  # Cambiar de caballo
             return
-
-        # Realizar movimiento
-        self.game.mover(self.current_horse, best_move)
         
         # Actualizar visualización
         self.update_board()

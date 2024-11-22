@@ -18,8 +18,8 @@ class SmartHorsesGame:
         self.horse1_x2 = False
         self.horse2_x2 = False
 
-        # Añadir un nuevo atributo para almacenar el último movimiento
-        self.horse2_last_move = None
+        self.horse1_history = [self.horse1_pos]
+        self.horse2_history = [self.horse2_pos]
         
         # Movimientos válidos de caballo de ajedrez
         self.horse_moves = [
@@ -41,9 +41,11 @@ class SmartHorsesGame:
         # Posiciones de los caballos
         horse1_pos = random.sample(all_positions, 1)[0]  # Posición aleatoria para el caballo 1
         all_positions.remove(horse1_pos) # Eliminar posiciones de caballo 1
+        self.horse1_last_move = horse1_pos
 
         horse2_pos = random.sample(all_positions, 1)[0] # Posición aleatoria para el caballo 2
         all_positions.remove(horse2_pos) # Eliminar posiciones de caballo 2
+        self.horse2_last_move = horse2_pos
         
         # Generar casillas de puntos
         point_positions = random.sample(all_positions, 10)
@@ -97,9 +99,12 @@ class SmartHorsesGame:
         x, y = current_pos
         moves = []
         
+        history = self.horse1_history if horse == 1 else self.horse2_history
+        last_move = self.horse1_last_move if horse == 1 else self.horse2_last_move
+
         for dx, dy in self.horse_moves:
             next_pos = (x + dx, y + dy)
-            if self.movimiento_valido(current_pos, next_pos, horse):
+            if self.movimiento_valido(current_pos, next_pos, horse) and next_pos != last_move and next_pos not in history[-3:]:
                 moves.append(next_pos)
         
         return moves
@@ -110,10 +115,12 @@ class SmartHorsesGame:
             current_pos = self.horse1_pos
             current_x2 = self.horse1_x2
             current_score = self.horse1_score
+            self.horse1_history.append(move)
         else:
             current_pos = self.horse2_pos
             current_x2 = self.horse2_x2
             current_score = self.horse2_score
+            self.horse2_history.append(move)
 
         # Añadir puntos de la casilla
         points = self.points_board[move[0], move[1]]
@@ -137,6 +144,7 @@ class SmartHorsesGame:
             self.horse1_pos = move
             self.horse1_score = current_score
             self.horse1_x2 = current_x2
+            self.horse1_last_move = move
         else:
             self.horse2_pos = move
             self.horse2_score = current_score
@@ -147,71 +155,107 @@ class SmartHorsesGame:
         """Verifica si quedan casillas con puntos"""
         return np.all(self.points_board == 0)
 
-    def minimax(self, depth: int, maximizing_player: bool, horse: int) -> Tuple[Optional[Tuple[int, int]], int]:
+    def minimax_horse1(self, depth: int, maximizing_player: bool) -> Tuple[Optional[Tuple[int, int]], int]:
         if depth == 0 or self.game_over():
-            # Evaluar el estado del juego
-            return None, self.evaluar_tablero(horse)
+            return None, self.evaluar_tablero(1)
 
-        # Determinar la posición actual y los movimientos válidos
-        if horse == 1:
-            current_pos = self.horse1_pos
-        else:
-            current_pos = self.horse2_pos
+        current_pos = self.horse1_pos
+        valid_moves = self.obtener_movimientos_validos(current_pos, 1)
 
-        valid_moves = self.obtener_movimientos_validos(current_pos, horse)
+        # Remover el último movimiento para evitar bucles
+        if self.horse1_last_move in valid_moves:
+            valid_moves.remove(self.horse1_last_move)
 
         if len(valid_moves) == 0:
-            return None, self.evaluar_tablero(horse)
+            return None, self.evaluar_tablero(1)
 
-        # Lógica original de minimax para el caballo 2 o movimientos del caballo 1 sin puntos
         if maximizing_player:
             max_eval = float('-inf')
             best_move = None
             for move in valid_moves:
-                # Simular el movimiento
                 game_copy = self.copy()
-                game_copy.mover(horse, move)
-                
-                # Llamada recursiva al minimax
-                _, eval_score = game_copy.minimax(
-                    depth - 1, 
-                    False, 
-                    2 if horse == 1 else 1
-                )
-                
-                if eval_score > max_eval:
+                game_copy.mover(1, move)
+                _, eval_score = game_copy.minimax_horse2(depth - 1, False)
+                if eval_score > max_eval or self.points_board[move[0]][move[1]] > 0:
                     max_eval = eval_score
                     best_move = move
-            
+                # Lógica de desempate
+                elif eval_score == max_eval:
+                    random.shuffle(valid_moves)  # Rompe patrones fijos
+                    best_move = random.choice([move for move in valid_moves if move not in self.horse1_history[-3:]])
             return best_move, max_eval
         else:
             min_eval = float('inf')
             best_move = None
             for move in valid_moves:
-                # Simular el movimiento
                 game_copy = self.copy()
-                game_copy.mover(horse, move)
-                
-                # Llamada recursiva al minimax
-                _, eval_score = game_copy.minimax(
-                    depth - 1, 
-                    True, 
-                    2 if horse == 1 else 1
-                )
-                
-                if eval_score < min_eval:
+                game_copy.mover(1, move)
+                _, eval_score = game_copy.minimax_horse2(depth - 1, True)
+                if eval_score < min_eval or self.points_board[move[0]][move[1]] > 0:
                     min_eval = eval_score
                     best_move = move
-            
+                # Lógica de desempate
+                elif eval_score == min_eval:
+                    random.shuffle(valid_moves)  # Rompe patrones fijos
+                    best_move = random.choice([move for move in valid_moves if move not in self.horse1_history[-3:]])
+            return best_move, min_eval
+        
+    def minimax_horse2(self, depth: int, maximizing_player: bool) -> Tuple[Optional[Tuple[int, int]], int]:
+        if depth == 0 or self.game_over():
+            return None, self.evaluar_tablero(2)
+
+        current_pos = self.horse2_pos
+        valid_moves = self.obtener_movimientos_validos(current_pos, 2)
+
+        # Remover el último movimiento para evitar bucles
+        if self.horse2_last_move in valid_moves:
+            valid_moves.remove(self.horse2_last_move)
+
+        if len(valid_moves) == 0:
+            return None, self.evaluar_tablero(2)
+
+        if maximizing_player:
+            max_eval = float('-inf')
+            best_move = None
+            for move in valid_moves:
+                game_copy = self.copy()
+                game_copy.mover(2, move)
+                _, eval_score = game_copy.minimax_horse1(depth - 1, False)
+                if eval_score > max_eval or self.points_board[move[0]][move[1]] > 0:
+                    max_eval = eval_score
+                    best_move = move
+                # Lógica de desempate
+                elif eval_score == max_eval:
+                    random.shuffle(valid_moves)  # Rompe patrones fijos
+                    best_move = random.choice([move for move in valid_moves if move not in self.horse2_history[-3:]])
+            return best_move, max_eval
+        else:
+            min_eval = float('inf')
+            best_move = None
+            for move in valid_moves:
+                game_copy = self.copy()
+                game_copy.mover(2, move)
+                _, eval_score = game_copy.minimax_horse1(depth - 1, True)
+                if eval_score < min_eval or self.points_board[move[0]][move[1]] > 0:
+                    min_eval = eval_score
+                    best_move = move
+                # Lógica de desempate
+                elif eval_score == min_eval:
+                    random.shuffle(valid_moves)  # Rompe patrones fijos
+                    best_move = random.choice([move for move in valid_moves if move not in self.horse2_history[-3:]])
             return best_move, min_eval
 
     def evaluar_tablero(self, horse: int) -> int:
         if horse == 1:
             # Función de utilidad original para el caballo 1: diferencia de puntuaciones
-            return self.horse1_score - self.horse2_score
+            base_score = self.horse1_score - self.horse2_score
+            penalty = -len(set(self.horse1_history[-3:]))  # Penalizar ciclos recientes
+            return base_score + penalty
         else:
             # Nueva función de utilidad para el caballo 2
-            return self.evaluar_tablero_horse2()
+            base_score = self.evaluar_tablero_horse2()
+            penalty = -len(set(self.horse2_history[-3:]))  # Penalizar ciclos recientes
+            return base_score + penalty
         
     def evaluar_tablero_horse2(self) -> int:
         # Diferencia de puntuaciones base
@@ -275,5 +319,6 @@ class SmartHorsesGame:
         game_copy.horse2_score = self.horse2_score
         game_copy.horse1_x2 = self.horse1_x2
         game_copy.horse2_x2 = self.horse2_x2
+        game_copy.horse1_last_move = self.horse1_last_move  # Agregar esta línea
         game_copy.horse2_last_move = self.horse2_last_move
         return game_copy
